@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alternate Airport Surface Mobility Map</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:Arial,sans-serif; height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+  #header { background:#1a1a2e; color:white; padding:8px 20px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+  #header h1 { font-size:13px; font-weight:bold; }
+  #control-bar { background:#0d1525; padding:6px 20px; display:flex; align-items:center; gap:12px; flex-shrink:0; border-bottom:1px solid #2a3a50; flex-wrap:wrap; }
+  #control-bar label { font-size:11px; color:#888; white-space:nowrap; }
+  .apt-btn { padding:4px 10px; font-size:11px; border-radius:3px; cursor:pointer; border:1px solid; opacity:0.4; transition:opacity 0.15s; }
+  .apt-btn.on { opacity:1; }
+  select, input[type=password] { background:#1e2d45; border:1px solid #2a3a50; color:#e2e8f0; padding:4px 8px; font-size:11px; border-radius:3px; }
+  .mode-btn { padding:4px 10px; font-size:11px; border-radius:3px; cursor:pointer; border:1px solid #2a3a50; background:#1e2d45; color:#94a3b8; }
+  .mode-btn.active { background:#3b82f6; color:white; border-color:#3b82f6; }
+  button.load-btn { background:#3b82f6; color:white; border:none; padding:5px 14px; font-size:11px; border-radius:3px; cursor:pointer; }
+  #main { display:flex; flex:1; overflow:hidden; }
+  #map { flex:1; display:none; }
+  #map-placeholder { flex:1; background:#0a0e1a; display:flex; align-items:center; justify-content:center; color:#475569; font-size:13px; flex-direction:column; gap:8px; }
+  #sidebar { width:340px; background:#111827; color:#e2e8f0; display:flex; flex-direction:column; overflow:hidden; border-left:1px solid #1e2d45; flex-shrink:0; }
+  #sidebar-title { padding:10px 16px; border-bottom:1px solid #1e2d45; font-size:11px; font-weight:bold; text-transform:uppercase; letter-spacing:0.08em; color:#94a3b8; }
+  #results { flex:1; overflow-y:auto; padding:8px; }
+  .result-block { margin-bottom:8px; border:1px solid #1e2d45; border-radius:6px; overflow:hidden; }
+  .result-header { padding:7px 12px; font-size:11px; font-weight:bold; border-bottom:1px solid #1e2d45; display:flex; align-items:center; gap:8px; }
+  .result-row { padding:5px 12px; display:flex; justify-content:space-between; border-bottom:1px solid #1e2d45; font-size:11px; }
+  .result-row:last-child { border-bottom:none; }
+  .result-label { color:#64748b; }
+  .result-val { color:#e2e8f0; font-weight:bold; }
+  .spinner { width:10px; height:10px; border:2px solid #1e2d45; border-top-color:#64748b; border-radius:50%; animation:spin 0.7s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  #loading-bar { padding:5px 16px; font-size:10px; color:#f59e0b; display:none; border-top:1px solid #1e2d45; }
+  #coords { padding:4px 16px; border-top:1px solid #1e2d45; font-size:10px; color:#475569; }
+  #legend { padding:6px 16px; border-top:1px solid #1e2d45; display:flex; flex-wrap:wrap; gap:6px; }
+  .leg { display:flex; align-items:center; gap:3px; font-size:10px; color:#64748b; }
+  .leg-line { width:14px; height:2px; border-radius:1px; }
+  .dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+</style>
+<script type='text/javascript' src='https://8080-m-s-kkb-usc1a2-3lvtnedn51sjr-a.us-central1-2.prod.colab.dev/l-_mwek1Bvyu31YK__Z4ypfzCxPA0OldWRDyfft1NM_DmAIiVz96FuYFZZS4MnQJRSLo7DPSBkzVBMMhXe_ebvQ82HzYA8dpNf8nMKnpud52ZTh34S-MRSEUJzDaCnwff_2rkHLJ8Gtg5fce6--tj0e75CuWytKuK4febrNKotW0dL8TrOyqSYVmW_EhEMgbtpivNlEhuiMbPwF2ThKBTmPVF_eud4XATnNXQqlxedd1zpK7WiwV6ysqCBcTxy9MLP_s5KsOv7B6JKr7vLNc14ERiaS7Na91gtXc6S7P2hLPnxzhICrHganIs431profN-KE4FPI8M0pvtlWKgwwc1QzrnL7EIo6yBMJc164w7svCjt5KYVMjapO3TNjRkGynxfxfo5DgA_wW-DyCQEaCbWtUjmOv1DI9gdSxKvUl26IfmZErIU02x6Qs9LCdfHTR_Y9zD4Pr5FgKRWIVcwORdU1sR3gYkDWqjJcQpKaM1q-P9zekh-HeIKhmvk2mNBPd2JyXTFRRA6KTfLUpRgpEdLrSbqa1mAWAHhxKUV516weRSo8LTN6s8Eic-UJRMuaCOs_eOj6VJmTkuDqKbahU2FJbACNwBUAYkTdwt-An2F3HDkWUVaGJaFBJM9X-jNrS25Jsz-JQn1Nlfn8Fs1YYunK9477oZNuBYyfz0qZQsTuCp5DT6rfZ8YKUq5S_-d72TbR4DAKGxZMksaHZ-93s5BkP-fvxDDNx7B2-TvL45dlPVfqhI86ISsZImpolNO8Bmvs8hJuTMOqgeFoGFzAU4Tknz2LiCuZxjiS7ZzC8o96Ci8BDrBbGCFvgTzi_z-jGDNyQMEm_sttpSNFL3M_BuTWkbONdn_eEnvm9eycCFT7SDXblq6uT6DuXm6hTBcA6XPeA-wkW_VmQhb77IJJ1bKn28tskK2Gs6xZzq7qqZcZBd_Ls7u3pOlGLb1jqfaSJPS83gO6ybQiCi8'></script></head>
+<body>
+
+<div id="header">
+  <h1> Alternate Airport Surface Mobility </h1>
+  <span style="font-size:11px;color:#64748b;">University of Westminster · SESAR Project</span>
+</div>
+
+<div id="control-bar">
+  <label>API Key:</label>
+  <input type="password" id="apiKey" placeholder="Google Maps API key" style="width:220px"/>
+  <button class="load-btn" onclick="loadMap()">Load Map</button>
+
+  <label style="margin-left:8px">Show airport:</label>
+  <button class="apt-btn on" id="btn-LFPG" style="color:#9C27B0;border-color:#9C27B0;background:#9C27B022"
+          onclick="toggleAirport('LFPG')">CDG</button>
+  <button class="apt-btn on" id="btn-ESSA" style="color:#2196F3;border-color:#2196F3;background:#2196F322"
+          onclick="toggleAirport('ESSA')">ARN</button>
+  <button class="apt-btn on" id="btn-LGAV" style="color:#4CAF50;border-color:#4CAF50;background:#4CAF5022"
+          onclick="toggleAirport('LGAV')">ATH</button>
+  <button class="apt-btn on" id="btn-LIMC" style="color:#FF5722;border-color:#FF5722;background:#FF572222"
+          onclick="toggleAirport('LIMC')">MXP</button>
+
+  <label style="margin-left:8px">Time:</label>
+  <select id="time-slot" onchange="redrawFixed()">
+    <option value="08:00">08:00 Morning</option>
+    <option value="12:00">12:00 Midday</option>
+    <option value="17:00">17:00 Evening</option>
+    <option value="22:00">22:00 Night</option>
+  </select>
+
+  <label style="margin-left:8px">Mode:</label>
+  <button class="mode-btn active" id="btn-fixed"  onclick="setMode('fixed')">Fixed Routes</button>
+  <button class="mode-btn"        id="btn-custom" onclick="setMode('custom')">Click Anywhere</button>
+</div>
+
+<div id="main">
+  <div id="map-placeholder">
+    <div style="font-size:32px">🗺</div>
+    <div>Paste your Google Maps API key above and click Load Map</div>
+  </div>
+  <div id="map"></div>
+  <div id="sidebar">
+    <div id="sidebar-title">Surface Mobility Results</div>
+    <div id="results">
+      <div style="padding:24px 16px;text-align:center;font-size:11px;color:#64748b;">
+        Load the map then click an alternate airport marker or use Click Anywhere mode.
+      </div>
+    </div>
+    <div id="loading-bar"> Calculating transit routes...</div>
+    <div id="legend">
+      <div class="leg"><div class="leg-line" style="background:#ff8800"></div>Drive (TomTom)</div>
+      <div class="leg"><div class="leg-line" style="background:#00ccff"></div>Transit (Google)</div>
+      <div class="leg"><div class="leg-line" style="background:#ffffff;opacity:0.3"></div>Alt → City</div>
+    </div>
+    <div id="coords">Click a marker or the map to begin</div>
+  </div>
+</div>
+
+<script>
+const MAP_DATA    = [{"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EBBR", "alt_lat": 50.9013888889, "alt_lon": 4.4844444444, "n_flights_alt": 129, "dist_km": 251.9, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 209}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EBBR", "alt_lat": 50.9013888889, "alt_lon": 4.4844444444, "n_flights_alt": 129, "dist_km": 251.9, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 208}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EBBR", "alt_lat": 50.9013888889, "alt_lon": 4.4844444444, "n_flights_alt": 129, "dist_km": 251.9, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 220}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EBBR", "alt_lat": 50.9013888889, "alt_lon": 4.4844444444, "n_flights_alt": 129, "dist_km": 251.9, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 189}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EBLG", "alt_lat": 50.6363888889, "alt_lon": 5.4427777778, "n_flights_alt": 11, "dist_km": 275.4, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 222}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EBLG", "alt_lat": 50.6363888889, "alt_lon": 5.4427777778, "n_flights_alt": 11, "dist_km": 275.4, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 223}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EBLG", "alt_lat": 50.6363888889, "alt_lon": 5.4427777778, "n_flights_alt": 11, "dist_km": 275.4, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 218}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EBLG", "alt_lat": 50.6363888889, "alt_lon": 5.4427777778, "n_flights_alt": 11, "dist_km": 275.4, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 205}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EBOS", "alt_lat": 51.1988888889, "alt_lon": 2.8622222222, "n_flights_alt": 28, "dist_km": 244.5, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 210}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EBOS", "alt_lat": 51.1988888889, "alt_lon": 2.8622222222, "n_flights_alt": 28, "dist_km": 244.5, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 205}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EBOS", "alt_lat": 51.1988888889, "alt_lon": 2.8622222222, "n_flights_alt": 28, "dist_km": 244.5, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 208}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EBOS", "alt_lat": 51.1988888889, "alt_lon": 2.8622222222, "n_flights_alt": 28, "dist_km": 244.5, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 185}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EDDF", "alt_lat": 50.0333333333, "alt_lon": 8.570555555599999, "n_flights_alt": 28, "dist_km": 449.3, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 320}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EDDF", "alt_lat": 50.0333333333, "alt_lon": 8.570555555599999, "n_flights_alt": 28, "dist_km": 449.3, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 322}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EDDF", "alt_lat": 50.0333333333, "alt_lon": 8.570555555599999, "n_flights_alt": 28, "dist_km": 449.3, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 313}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EDDF", "alt_lat": 50.0333333333, "alt_lon": 8.570555555599999, "n_flights_alt": 28, "dist_km": 449.3, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 306}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EDDK", "alt_lat": 50.8658333333, "alt_lon": 7.1427777778, "n_flights_alt": 13, "dist_km": 388.1, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 308}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EDDK", "alt_lat": 50.8658333333, "alt_lon": 7.1427777778, "n_flights_alt": 13, "dist_km": 388.1, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 311}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EDDK", "alt_lat": 50.8658333333, "alt_lon": 7.1427777778, "n_flights_alt": 13, "dist_km": 388.1, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 294}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EDDK", "alt_lat": 50.8658333333, "alt_lon": 7.1427777778, "n_flights_alt": 13, "dist_km": 388.1, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 281}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EDDL", "alt_lat": 51.2808333333, "alt_lon": 6.7572222222, "n_flights_alt": 1, "dist_km": 392.0, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 305}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EDDL", "alt_lat": 51.2808333333, "alt_lon": 6.7572222222, "n_flights_alt": 1, "dist_km": 392.0, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 311}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EDDL", "alt_lat": 51.2808333333, "alt_lon": 6.7572222222, "n_flights_alt": 1, "dist_km": 392.0, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 293}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EDDL", "alt_lat": 51.2808333333, "alt_lon": 6.7572222222, "n_flights_alt": 1, "dist_km": 392.0, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 283}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EDDP", "alt_lat": 51.4238888889, "alt_lon": 12.2363888889, "n_flights_alt": 2, "dist_km": 739.1, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 502}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EDDP", "alt_lat": 51.4238888889, "alt_lon": 12.2363888889, "n_flights_alt": 2, "dist_km": 739.1, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 499}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EDDP", "alt_lat": 51.4238888889, "alt_lon": 12.2363888889, "n_flights_alt": 2, "dist_km": 739.1, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 490}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EDDP", "alt_lat": 51.4238888889, "alt_lon": 12.2363888889, "n_flights_alt": 2, "dist_km": 739.1, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 486}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EGKK", "alt_lat": 51.1480555556, "alt_lon": -0.1902777778, "n_flights_alt": 11, "dist_km": 307.7, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 327}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EGKK", "alt_lat": 51.1480555556, "alt_lon": -0.1902777778, "n_flights_alt": 11, "dist_km": 307.7, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 334}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EGKK", "alt_lat": 51.1480555556, "alt_lon": -0.1902777778, "n_flights_alt": 11, "dist_km": 307.7, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 317}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EGKK", "alt_lat": 51.1480555556, "alt_lon": -0.1902777778, "n_flights_alt": 11, "dist_km": 307.7, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 311}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EGLL", "alt_lat": 51.4775, "alt_lon": -0.4613888889, "n_flights_alt": 12, "dist_km": 347.9, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 354}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EGLL", "alt_lat": 51.4775, "alt_lon": -0.4613888889, "n_flights_alt": 12, "dist_km": 347.9, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 354}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EGLL", "alt_lat": 51.4775, "alt_lon": -0.4613888889, "n_flights_alt": 12, "dist_km": 347.9, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 345}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EGLL", "alt_lat": 51.4775, "alt_lon": -0.4613888889, "n_flights_alt": 12, "dist_km": 347.9, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 329}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EHAM", "alt_lat": 52.308055555600006, "alt_lon": 4.7641666667, "n_flights_alt": 38, "dist_km": 398.6, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 320}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EHAM", "alt_lat": 52.308055555600006, "alt_lon": 4.7641666667, "n_flights_alt": 38, "dist_km": 398.6, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 329}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EHAM", "alt_lat": 52.308055555600006, "alt_lon": 4.7641666667, "n_flights_alt": 38, "dist_km": 398.6, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 320}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "EHAM", "alt_lat": 52.308055555600006, "alt_lon": 4.7641666667, "n_flights_alt": 38, "dist_km": 398.6, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 286}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "ELLX", "alt_lat": 49.6233333333, "alt_lon": 6.204444444400001, "n_flights_alt": 20, "dist_km": 273.7, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 216}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "ELLX", "alt_lat": 49.6233333333, "alt_lon": 6.204444444400001, "n_flights_alt": 20, "dist_km": 273.7, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 216}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "ELLX", "alt_lat": 49.6233333333, "alt_lon": 6.204444444400001, "n_flights_alt": 20, "dist_km": 273.7, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 238}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "ELLX", "alt_lat": 49.6233333333, "alt_lon": 6.204444444400001, "n_flights_alt": 20, "dist_km": 273.7, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 204}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFBI", "alt_lat": 46.5875, "alt_lon": 0.3066666667, "n_flights_alt": 1, "dist_km": 317.1, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 214}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFBI", "alt_lat": 46.5875, "alt_lon": 0.3066666667, "n_flights_alt": 1, "dist_km": 317.1, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 215}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFBI", "alt_lat": 46.5875, "alt_lon": 0.3066666667, "n_flights_alt": 1, "dist_km": 317.1, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 209}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFBI", "alt_lat": 46.5875, "alt_lon": 0.3066666667, "n_flights_alt": 1, "dist_km": 317.1, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 203}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFBO", "alt_lat": 43.635, "alt_lon": 1.3677777778, "n_flights_alt": 3, "dist_km": 604.5, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 371}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFBO", "alt_lat": 43.635, "alt_lon": 1.3677777778, "n_flights_alt": 3, "dist_km": 604.5, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 382}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFBO", "alt_lat": 43.635, "alt_lon": 1.3677777778, "n_flights_alt": 3, "dist_km": 604.5, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 369}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFBO", "alt_lat": 43.635, "alt_lon": 1.3677777778, "n_flights_alt": 3, "dist_km": 604.5, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 361}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFLL", "alt_lat": 45.7255555556, "alt_lon": 5.0811111111, "n_flights_alt": 21, "dist_km": 412.0, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 261}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFLL", "alt_lat": 45.7255555556, "alt_lon": 5.0811111111, "n_flights_alt": 21, "dist_km": 412.0, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 265}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFLL", "alt_lat": 45.7255555556, "alt_lon": 5.0811111111, "n_flights_alt": 21, "dist_km": 412.0, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 255}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFLL", "alt_lat": 45.7255555556, "alt_lon": 5.0811111111, "n_flights_alt": 21, "dist_km": 412.0, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 251}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFML", "alt_lat": 43.4366666667, "alt_lon": 5.215, "n_flights_alt": 3, "dist_km": 652.7, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 412}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFML", "alt_lat": 43.4366666667, "alt_lon": 5.215, "n_flights_alt": 3, "dist_km": 652.7, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 419}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFML", "alt_lat": 43.4366666667, "alt_lon": 5.215, "n_flights_alt": 3, "dist_km": 652.7, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 404}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFML", "alt_lat": 43.4366666667, "alt_lon": 5.215, "n_flights_alt": 3, "dist_km": 652.7, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 395}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFOB", "alt_lat": 49.4544444444, "alt_lon": 2.1127777778, "n_flights_alt": 188, "dist_km": 58.7, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 111}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFOB", "alt_lat": 49.4544444444, "alt_lon": 2.1127777778, "n_flights_alt": 188, "dist_km": 58.7, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 87}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFOB", "alt_lat": 49.4544444444, "alt_lon": 2.1127777778, "n_flights_alt": 188, "dist_km": 58.7, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 96}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFOB", "alt_lat": 49.4544444444, "alt_lon": 2.1127777778, "n_flights_alt": 188, "dist_km": 58.7, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 75}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFOK", "alt_lat": 48.7733333333, "alt_lon": 4.2061111111, "n_flights_alt": 1, "dist_km": 124.1, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 134}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFOK", "alt_lat": 48.7733333333, "alt_lon": 4.2061111111, "n_flights_alt": 1, "dist_km": 124.1, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 127}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFOK", "alt_lat": 48.7733333333, "alt_lon": 4.2061111111, "n_flights_alt": 1, "dist_km": 124.1, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 129}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFOK", "alt_lat": 48.7733333333, "alt_lon": 4.2061111111, "n_flights_alt": 1, "dist_km": 124.1, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 118}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFPB", "alt_lat": 48.9694444444, "alt_lon": 2.4413888889, "n_flights_alt": 1, "dist_km": 9.0, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 73}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFPB", "alt_lat": 48.9694444444, "alt_lon": 2.4413888889, "n_flights_alt": 1, "dist_km": 9.0, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 49}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFPB", "alt_lat": 48.9694444444, "alt_lon": 2.4413888889, "n_flights_alt": 1, "dist_km": 9.0, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 60}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFPB", "alt_lat": 48.9694444444, "alt_lon": 2.4413888889, "n_flights_alt": 1, "dist_km": 9.0, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 36}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFPO", "alt_lat": 48.7233333333, "alt_lon": 2.3794444444, "n_flights_alt": 507, "dist_km": 34.1, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 50}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFPO", "alt_lat": 48.7233333333, "alt_lon": 2.3794444444, "n_flights_alt": 507, "dist_km": 34.1, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 37}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFPO", "alt_lat": 48.7233333333, "alt_lon": 2.3794444444, "n_flights_alt": 507, "dist_km": 34.1, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 46}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFPO", "alt_lat": 48.7233333333, "alt_lon": 2.3794444444, "n_flights_alt": 507, "dist_km": 34.1, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 30}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFQQ", "alt_lat": 50.5633333333, "alt_lon": 3.0869444444, "n_flights_alt": 142, "dist_km": 177.0, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 152}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFQQ", "alt_lat": 50.5633333333, "alt_lon": 3.0869444444, "n_flights_alt": 142, "dist_km": 177.0, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 145}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFQQ", "alt_lat": 50.5633333333, "alt_lon": 3.0869444444, "n_flights_alt": 142, "dist_km": 177.0, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 152}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFQQ", "alt_lat": 50.5633333333, "alt_lon": 3.0869444444, "n_flights_alt": 142, "dist_km": 177.0, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 131}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFRS", "alt_lat": 47.1569444444, "alt_lon": -1.6077777778, "n_flights_alt": 10, "dist_km": 371.0, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 236}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFRS", "alt_lat": 47.1569444444, "alt_lon": -1.6077777778, "n_flights_alt": 10, "dist_km": 371.0, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 228}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFRS", "alt_lat": 47.1569444444, "alt_lon": -1.6077777778, "n_flights_alt": 10, "dist_km": 371.0, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 223}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFRS", "alt_lat": 47.1569444444, "alt_lon": -1.6077777778, "n_flights_alt": 10, "dist_km": 371.0, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 215}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFSB", "alt_lat": 47.59, "alt_lon": 7.529166666699999, "n_flights_alt": 3, "dist_km": 400.8, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 318}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFSB", "alt_lat": 47.59, "alt_lon": 7.529166666699999, "n_flights_alt": 3, "dist_km": 400.8, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 323}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFSB", "alt_lat": 47.59, "alt_lon": 7.529166666699999, "n_flights_alt": 3, "dist_km": 400.8, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 316}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LFSB", "alt_lat": 47.59, "alt_lon": 7.529166666699999, "n_flights_alt": 3, "dist_km": 400.8, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 305}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LIPR", "alt_lat": 44.0194444444, "alt_lon": 12.6094444444, "n_flights_alt": 1, "dist_km": 947.8, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 661}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LIPR", "alt_lat": 44.0194444444, "alt_lon": 12.6094444444, "n_flights_alt": 1, "dist_km": 947.8, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 651}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LIPR", "alt_lat": 44.0194444444, "alt_lon": 12.6094444444, "n_flights_alt": 1, "dist_km": 947.8, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 644}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LIPR", "alt_lat": 44.0194444444, "alt_lon": 12.6094444444, "n_flights_alt": 1, "dist_km": 947.8, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 680}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LIRF", "alt_lat": 41.800277777800005, "alt_lon": 12.238888888900002, "n_flights_alt": 1, "dist_km": 1100.6, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 782}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LIRF", "alt_lat": 41.800277777800005, "alt_lon": 12.238888888900002, "n_flights_alt": 1, "dist_km": 1100.6, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 778}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LIRF", "alt_lat": 41.800277777800005, "alt_lon": 12.238888888900002, "n_flights_alt": 1, "dist_km": 1100.6, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 772}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LIRF", "alt_lat": 41.800277777800005, "alt_lon": 12.238888888900002, "n_flights_alt": 1, "dist_km": 1100.6, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 782}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LSGG", "alt_lat": 46.2383333333, "alt_lon": 6.1094444444, "n_flights_alt": 19, "dist_km": 407.6, "time_slot": "08:00", "drive_dest": 75, "drive_alt": 293}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LSGG", "alt_lat": 46.2383333333, "alt_lon": 6.1094444444, "n_flights_alt": 19, "dist_km": 407.6, "time_slot": "12:00", "drive_dest": 47, "drive_alt": 301}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LSGG", "alt_lat": 46.2383333333, "alt_lon": 6.1094444444, "n_flights_alt": 19, "dist_km": 407.6, "time_slot": "17:00", "drive_dest": 59, "drive_alt": 302}, {"dest": "LFPG", "city": "Paris", "city_lat": 48.8566, "city_lon": 2.3522, "alt": "LSGG", "alt_lat": 46.2383333333, "alt_lon": 6.1094444444, "n_flights_alt": 19, "dist_km": 407.6, "time_slot": "22:00", "drive_dest": 34, "drive_alt": 283}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EDDB", "alt_lat": 52.3622222222, "alt_lon": 13.5005555556, "n_flights_alt": 1, "dist_km": 855.4, "time_slot": "08:00", "drive_dest": 68, "drive_alt": 686}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EDDB", "alt_lat": 52.3622222222, "alt_lon": 13.5005555556, "n_flights_alt": 1, "dist_km": 855.4, "time_slot": "12:00", "drive_dest": 61, "drive_alt": 681}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EDDB", "alt_lat": 52.3622222222, "alt_lon": 13.5005555556, "n_flights_alt": 1, "dist_km": 855.4, "time_slot": "17:00", "drive_dest": 64, "drive_alt": 672}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EDDB", "alt_lat": 52.3622222222, "alt_lon": 13.5005555556, "n_flights_alt": 1, "dist_km": 855.4, "time_slot": "22:00", "drive_dest": 55, "drive_alt": 676}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EETN", "alt_lat": 59.4133333333, "alt_lon": 24.8325, "n_flights_alt": 9, "dist_km": 390.5, "time_slot": "08:00", "drive_dest": 68, "drive_alt": 547}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EETN", "alt_lat": 59.4133333333, "alt_lon": 24.8325, "n_flights_alt": 9, "dist_km": 390.5, "time_slot": "12:00", "drive_dest": 61, "drive_alt": 541}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EETN", "alt_lat": 59.4133333333, "alt_lon": 24.8325, "n_flights_alt": 9, "dist_km": 390.5, "time_slot": "17:00", "drive_dest": 64, "drive_alt": 540}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EETN", "alt_lat": 59.4133333333, "alt_lon": 24.8325, "n_flights_alt": 9, "dist_km": 390.5, "time_slot": "22:00", "drive_dest": 55, "drive_alt": 538}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EFHK", "alt_lat": 60.3172222222, "alt_lon": 24.9633333333, "n_flights_alt": 17, "dist_km": 398.6, "time_slot": "08:00", "drive_dest": 68, "drive_alt": 465}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EFHK", "alt_lat": 60.3172222222, "alt_lon": 24.9633333333, "n_flights_alt": 17, "dist_km": 398.6, "time_slot": "12:00", "drive_dest": 61, "drive_alt": 464}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EFHK", "alt_lat": 60.3172222222, "alt_lon": 24.9633333333, "n_flights_alt": 17, "dist_km": 398.6, "time_slot": "17:00", "drive_dest": 64, "drive_alt": 509}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EFHK", "alt_lat": 60.3172222222, "alt_lon": 24.9633333333, "n_flights_alt": 17, "dist_km": 398.6, "time_slot": "22:00", "drive_dest": 55, "drive_alt": 518}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EFTP", "alt_lat": 61.4152777778, "alt_lon": 23.587777777800003, "n_flights_alt": 8, "dist_km": 366.7, "time_slot": "08:00", "drive_dest": 68, "drive_alt": 496}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EFTP", "alt_lat": 61.4152777778, "alt_lon": 23.587777777800003, "n_flights_alt": 8, "dist_km": 366.7, "time_slot": "12:00", "drive_dest": 61, "drive_alt": 492}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EFTP", "alt_lat": 61.4152777778, "alt_lon": 23.587777777800003, "n_flights_alt": 8, "dist_km": 366.7, "time_slot": "17:00", "drive_dest": 64, "drive_alt": 487}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EFTP", "alt_lat": 61.4152777778, "alt_lon": 23.587777777800003, "n_flights_alt": 8, "dist_km": 366.7, "time_slot": "22:00", "drive_dest": 55, "drive_alt": 482}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EFTU", "alt_lat": 60.5147222222, "alt_lon": 22.2616666667, "n_flights_alt": 160, "dist_km": 259.2, "time_slot": "08:00", "drive_dest": 68, "drive_alt": 384}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EFTU", "alt_lat": 60.5147222222, "alt_lon": 22.2616666667, "n_flights_alt": 160, "dist_km": 259.2, "time_slot": "12:00", "drive_dest": 61, "drive_alt": 385}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EFTU", "alt_lat": 60.5147222222, "alt_lon": 22.2616666667, "n_flights_alt": 160, "dist_km": 259.2, "time_slot": "17:00", "drive_dest": 64, "drive_alt": 377}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EFTU", "alt_lat": 60.5147222222, "alt_lon": 22.2616666667, "n_flights_alt": 160, "dist_km": 259.2, "time_slot": "22:00", "drive_dest": 55, "drive_alt": 374}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EKCH", "alt_lat": 55.6180555556, "alt_lon": 12.6561111111, "n_flights_alt": 14, "dist_km": 546.7, "time_slot": "08:00", "drive_dest": 68, "drive_alt": 369}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EKCH", "alt_lat": 55.6180555556, "alt_lon": 12.6561111111, "n_flights_alt": 14, "dist_km": 546.7, "time_slot": "12:00", "drive_dest": 61, "drive_alt": 371}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EKCH", "alt_lat": 55.6180555556, "alt_lon": 12.6561111111, "n_flights_alt": 14, "dist_km": 546.7, "time_slot": "17:00", "drive_dest": 64, "drive_alt": 365}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EKCH", "alt_lat": 55.6180555556, "alt_lon": 12.6561111111, "n_flights_alt": 14, "dist_km": 546.7, "time_slot": "22:00", "drive_dest": 55, "drive_alt": 358}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ENGM", "alt_lat": 60.2027777778, "alt_lon": 11.0838888889, "n_flights_alt": 7, "dist_km": 385.5, "time_slot": "08:00", "drive_dest": 68, "drive_alt": 372}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ENGM", "alt_lat": 60.2027777778, "alt_lon": 11.0838888889, "n_flights_alt": 7, "dist_km": 385.5, "time_slot": "12:00", "drive_dest": 61, "drive_alt": 375}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ENGM", "alt_lat": 60.2027777778, "alt_lon": 11.0838888889, "n_flights_alt": 7, "dist_km": 385.5, "time_slot": "17:00", "drive_dest": 64, "drive_alt": 365}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ENGM", "alt_lat": 60.2027777778, "alt_lon": 11.0838888889, "n_flights_alt": 7, "dist_km": 385.5, "time_slot": "22:00", "drive_dest": 55, "drive_alt": 355}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESGG", "alt_lat": 57.66, "alt_lon": 12.2911111111, "n_flights_alt": 80, "dist_km": 393.5, "time_slot": "08:00", "drive_dest": 68, "drive_alt": 265}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESGG", "alt_lat": 57.66, "alt_lon": 12.2911111111, "n_flights_alt": 80, "dist_km": 393.5, "time_slot": "12:00", "drive_dest": 61, "drive_alt": 268}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESGG", "alt_lat": 57.66, "alt_lon": 12.2911111111, "n_flights_alt": 80, "dist_km": 393.5, "time_slot": "17:00", "drive_dest": 64, "drive_alt": 263}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESGG", "alt_lat": 57.66, "alt_lon": 12.2911111111, "n_flights_alt": 80, "dist_km": 393.5, "time_slot": "22:00", "drive_dest": 55, "drive_alt": 257}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESKN", "alt_lat": 58.7886111111, "alt_lon": 16.9036111111, "n_flights_alt": 64, "dist_km": 112.0, "time_slot": "08:00", "drive_dest": 68, "drive_alt": 84}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESKN", "alt_lat": 58.7886111111, "alt_lon": 16.9036111111, "n_flights_alt": 64, "dist_km": 112.0, "time_slot": "12:00", "drive_dest": 61, "drive_alt": 79}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESKN", "alt_lat": 58.7886111111, "alt_lon": 16.9036111111, "n_flights_alt": 64, "dist_km": 112.0, "time_slot": "17:00", "drive_dest": 64, "drive_alt": 82}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESKN", "alt_lat": 58.7886111111, "alt_lon": 16.9036111111, "n_flights_alt": 64, "dist_km": 112.0, "time_slot": "22:00", "drive_dest": 55, "drive_alt": 75}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESMS", "alt_lat": 55.5483333333, "alt_lon": 13.353333333299998, "n_flights_alt": 3, "dist_km": 530.9, "time_slot": "08:00", "drive_dest": 68, "drive_alt": 357}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESMS", "alt_lat": 55.5483333333, "alt_lon": 13.353333333299998, "n_flights_alt": 3, "dist_km": 530.9, "time_slot": "12:00", "drive_dest": 61, "drive_alt": 359}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESMS", "alt_lat": 55.5483333333, "alt_lon": 13.353333333299998, "n_flights_alt": 3, "dist_km": 530.9, "time_slot": "17:00", "drive_dest": 64, "drive_alt": 353}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESMS", "alt_lat": 55.5483333333, "alt_lon": 13.353333333299998, "n_flights_alt": 3, "dist_km": 530.9, "time_slot": "22:00", "drive_dest": 55, "drive_alt": 408}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESNN", "alt_lat": 62.5294444444, "alt_lon": 17.4427777778, "n_flights_alt": 2, "dist_km": 321.0, "time_slot": "08:00", "drive_dest": 68, "drive_alt": 246}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESNN", "alt_lat": 62.5294444444, "alt_lon": 17.4427777778, "n_flights_alt": 2, "dist_km": 321.0, "time_slot": "12:00", "drive_dest": 61, "drive_alt": 250}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESNN", "alt_lat": 62.5294444444, "alt_lon": 17.4427777778, "n_flights_alt": 2, "dist_km": 321.0, "time_slot": "17:00", "drive_dest": 64, "drive_alt": 242}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESNN", "alt_lat": 62.5294444444, "alt_lon": 17.4427777778, "n_flights_alt": 2, "dist_km": 321.0, "time_slot": "22:00", "drive_dest": 55, "drive_alt": 235}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESOE", "alt_lat": 59.2280555556, "alt_lon": 15.04, "n_flights_alt": 1, "dist_km": 169.4, "time_slot": "08:00", "drive_dest": 68, "drive_alt": 138}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESOE", "alt_lat": 59.2280555556, "alt_lon": 15.04, "n_flights_alt": 1, "dist_km": 169.4, "time_slot": "12:00", "drive_dest": 61, "drive_alt": 137}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESOE", "alt_lat": 59.2280555556, "alt_lon": 15.04, "n_flights_alt": 1, "dist_km": 169.4, "time_slot": "17:00", "drive_dest": 64, "drive_alt": 137}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESOE", "alt_lat": 59.2280555556, "alt_lon": 15.04, "n_flights_alt": 1, "dist_km": 169.4, "time_slot": "22:00", "drive_dest": 55, "drive_alt": 131}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESOK", "alt_lat": 59.4447222222, "alt_lon": 13.3375, "n_flights_alt": 1, "dist_km": 259.1, "time_slot": "08:00", "drive_dest": 68, "drive_alt": 209}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESOK", "alt_lat": 59.4447222222, "alt_lon": 13.3375, "n_flights_alt": 1, "dist_km": 259.1, "time_slot": "12:00", "drive_dest": 61, "drive_alt": 211}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESOK", "alt_lat": 59.4447222222, "alt_lon": 13.3375, "n_flights_alt": 1, "dist_km": 259.1, "time_slot": "17:00", "drive_dest": 64, "drive_alt": 207}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESOK", "alt_lat": 59.4447222222, "alt_lon": 13.3375, "n_flights_alt": 1, "dist_km": 259.1, "time_slot": "22:00", "drive_dest": 55, "drive_alt": 199}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESSB", "alt_lat": 59.3544444444, "alt_lon": 17.9422222222, "n_flights_alt": 19, "dist_km": 33.1, "time_slot": "08:00", "drive_dest": 68, "drive_alt": 27}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESSB", "alt_lat": 59.3544444444, "alt_lon": 17.9422222222, "n_flights_alt": 19, "dist_km": 33.1, "time_slot": "12:00", "drive_dest": 61, "drive_alt": 27}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESSB", "alt_lat": 59.3544444444, "alt_lon": 17.9422222222, "n_flights_alt": 19, "dist_km": 33.1, "time_slot": "17:00", "drive_dest": 64, "drive_alt": 31}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESSB", "alt_lat": 59.3544444444, "alt_lon": 17.9422222222, "n_flights_alt": 19, "dist_km": 33.1, "time_slot": "22:00", "drive_dest": 55, "drive_alt": 22}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESSP", "alt_lat": 58.5861111111, "alt_lon": 16.2463888889, "n_flights_alt": 9, "dist_km": 152.2, "time_slot": "08:00", "drive_dest": 68, "drive_alt": 114}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESSP", "alt_lat": 58.5861111111, "alt_lon": 16.2463888889, "n_flights_alt": 9, "dist_km": 152.2, "time_slot": "12:00", "drive_dest": 61, "drive_alt": 111}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESSP", "alt_lat": 58.5861111111, "alt_lon": 16.2463888889, "n_flights_alt": 9, "dist_km": 152.2, "time_slot": "17:00", "drive_dest": 64, "drive_alt": 112}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESSP", "alt_lat": 58.5861111111, "alt_lon": 16.2463888889, "n_flights_alt": 9, "dist_km": 152.2, "time_slot": "22:00", "drive_dest": 55, "drive_alt": 106}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESSV", "alt_lat": 57.6627777778, "alt_lon": 18.3461111111, "n_flights_alt": 12, "dist_km": 222.6, "time_slot": "08:00", "drive_dest": 68, "drive_alt": 248}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESSV", "alt_lat": 57.6627777778, "alt_lon": 18.3461111111, "n_flights_alt": 12, "dist_km": 222.6, "time_slot": "12:00", "drive_dest": 61, "drive_alt": 249}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESSV", "alt_lat": 57.6627777778, "alt_lon": 18.3461111111, "n_flights_alt": 12, "dist_km": 222.6, "time_slot": "17:00", "drive_dest": 64, "drive_alt": 247}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "ESSV", "alt_lat": 57.6627777778, "alt_lon": 18.3461111111, "n_flights_alt": 12, "dist_km": 222.6, "time_slot": "22:00", "drive_dest": 55, "drive_alt": 243}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EYVI", "alt_lat": 54.6369444444, "alt_lon": 25.2877777778, "n_flights_alt": 1, "dist_km": 712.3, "time_slot": "08:00", "drive_dest": 68, "drive_alt": 889}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EYVI", "alt_lat": 54.6369444444, "alt_lon": 25.2877777778, "n_flights_alt": 1, "dist_km": 712.3, "time_slot": "12:00", "drive_dest": 61, "drive_alt": 889}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EYVI", "alt_lat": 54.6369444444, "alt_lon": 25.2877777778, "n_flights_alt": 1, "dist_km": 712.3, "time_slot": "17:00", "drive_dest": 64, "drive_alt": 897}, {"dest": "ESSA", "city": "Stockholm", "city_lat": 59.3293, "city_lon": 18.0686, "alt": "EYVI", "alt_lat": 54.6369444444, "alt_lon": 25.2877777778, "n_flights_alt": 1, "dist_km": 712.3, "time_slot": "22:00", "drive_dest": 55, "drive_alt": 879}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LBSF", "alt_lat": 42.695, "alt_lon": 23.4083333333, "n_flights_alt": 2, "dist_km": 531.0, "time_slot": "08:00", "drive_dest": 44, "drive_alt": 485}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LBSF", "alt_lat": 42.695, "alt_lon": 23.4083333333, "n_flights_alt": 2, "dist_km": 531.0, "time_slot": "12:00", "drive_dest": 38, "drive_alt": 474}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LBSF", "alt_lat": 42.695, "alt_lon": 23.4083333333, "n_flights_alt": 2, "dist_km": 531.0, "time_slot": "17:00", "drive_dest": 45, "drive_alt": 464}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LBSF", "alt_lat": 42.695, "alt_lon": 23.4083333333, "n_flights_alt": 2, "dist_km": 531.0, "time_slot": "22:00", "drive_dest": 31, "drive_alt": 457}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGBL", "alt_lat": 39.2194444444, "alt_lon": 22.7944444444, "n_flights_alt": 2, "dist_km": 174.2, "time_slot": "08:00", "drive_dest": 44, "drive_alt": 179}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGBL", "alt_lat": 39.2194444444, "alt_lon": 22.7944444444, "n_flights_alt": 2, "dist_km": 174.2, "time_slot": "12:00", "drive_dest": 38, "drive_alt": 182}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGBL", "alt_lat": 39.2194444444, "alt_lon": 22.7944444444, "n_flights_alt": 2, "dist_km": 174.2, "time_slot": "17:00", "drive_dest": 45, "drive_alt": 177}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGBL", "alt_lat": 39.2194444444, "alt_lon": 22.7944444444, "n_flights_alt": 2, "dist_km": 174.2, "time_slot": "22:00", "drive_dest": 31, "drive_alt": 171}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGEL", "alt_lat": 38.0694444444, "alt_lon": 23.5541666667, "n_flights_alt": 1, "dist_km": 37.2, "time_slot": "08:00", "drive_dest": 44, "drive_alt": 40}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGEL", "alt_lat": 38.0694444444, "alt_lon": 23.5541666667, "n_flights_alt": 1, "dist_km": 37.2, "time_slot": "12:00", "drive_dest": 38, "drive_alt": 35}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGEL", "alt_lat": 38.0694444444, "alt_lon": 23.5541666667, "n_flights_alt": 1, "dist_km": 37.2, "time_slot": "17:00", "drive_dest": 45, "drive_alt": 41}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGEL", "alt_lat": 38.0694444444, "alt_lon": 23.5541666667, "n_flights_alt": 1, "dist_km": 37.2, "time_slot": "22:00", "drive_dest": 31, "drive_alt": 27}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGIR", "alt_lat": 35.339722222199995, "alt_lon": 25.1802777778, "n_flights_alt": 26, "dist_km": 309.1, "time_slot": "08:00", "drive_dest": 44, "drive_alt": 445}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGIR", "alt_lat": 35.339722222199995, "alt_lon": 25.1802777778, "n_flights_alt": 26, "dist_km": 309.1, "time_slot": "12:00", "drive_dest": 38, "drive_alt": 442}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGIR", "alt_lat": 35.339722222199995, "alt_lon": 25.1802777778, "n_flights_alt": 26, "dist_km": 309.1, "time_slot": "17:00", "drive_dest": 45, "drive_alt": 438}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGIR", "alt_lat": 35.339722222199995, "alt_lon": 25.1802777778, "n_flights_alt": 26, "dist_km": 309.1, "time_slot": "22:00", "drive_dest": 31, "drive_alt": 434}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGKL", "alt_lat": 37.0683333333, "alt_lon": 22.025277777800003, "n_flights_alt": 3, "dist_km": 194.9, "time_slot": "08:00", "drive_dest": 44, "drive_alt": 144}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGKL", "alt_lat": 37.0683333333, "alt_lon": 22.025277777800003, "n_flights_alt": 3, "dist_km": 194.9, "time_slot": "12:00", "drive_dest": 38, "drive_alt": 144}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGKL", "alt_lat": 37.0683333333, "alt_lon": 22.025277777800003, "n_flights_alt": 3, "dist_km": 194.9, "time_slot": "17:00", "drive_dest": 45, "drive_alt": 142}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGKL", "alt_lat": 37.0683333333, "alt_lon": 22.025277777800003, "n_flights_alt": 3, "dist_km": 194.9, "time_slot": "22:00", "drive_dest": 31, "drive_alt": 135}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGMK", "alt_lat": 37.4372222222, "alt_lon": 25.3472222222, "n_flights_alt": 119, "dist_km": 135.4, "time_slot": "08:00", "drive_dest": 44, "drive_alt": 241}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGMK", "alt_lat": 37.4372222222, "alt_lon": 25.3472222222, "n_flights_alt": 119, "dist_km": 135.4, "time_slot": "12:00", "drive_dest": 38, "drive_alt": 247}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGMK", "alt_lat": 37.4372222222, "alt_lon": 25.3472222222, "n_flights_alt": 119, "dist_km": 135.4, "time_slot": "17:00", "drive_dest": 45, "drive_alt": 238}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGMK", "alt_lat": 37.4372222222, "alt_lon": 25.3472222222, "n_flights_alt": 119, "dist_km": 135.4, "time_slot": "22:00", "drive_dest": 31, "drive_alt": 229}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGRP", "alt_lat": 36.4052777778, "alt_lon": 28.086111111100003, "n_flights_alt": 20, "dist_km": 404.5, "time_slot": "08:00", "drive_dest": 44, "drive_alt": 645}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGRP", "alt_lat": 36.4052777778, "alt_lon": 28.086111111100003, "n_flights_alt": 20, "dist_km": 404.5, "time_slot": "12:00", "drive_dest": 38, "drive_alt": 639}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGRP", "alt_lat": 36.4052777778, "alt_lon": 28.086111111100003, "n_flights_alt": 20, "dist_km": 404.5, "time_slot": "17:00", "drive_dest": 45, "drive_alt": 639}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGRP", "alt_lat": 36.4052777778, "alt_lon": 28.086111111100003, "n_flights_alt": 20, "dist_km": 404.5, "time_slot": "22:00", "drive_dest": 31, "drive_alt": 647}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGSA", "alt_lat": 35.5313888889, "alt_lon": 24.1511111111, "n_flights_alt": 86, "dist_km": 268.1, "time_slot": "08:00", "drive_dest": 44, "drive_alt": 431}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGSA", "alt_lat": 35.5313888889, "alt_lon": 24.1511111111, "n_flights_alt": 86, "dist_km": 268.1, "time_slot": "12:00", "drive_dest": 38, "drive_alt": 428}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGSA", "alt_lat": 35.5313888889, "alt_lon": 24.1511111111, "n_flights_alt": 86, "dist_km": 268.1, "time_slot": "17:00", "drive_dest": 45, "drive_alt": 423}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGSA", "alt_lat": 35.5313888889, "alt_lon": 24.1511111111, "n_flights_alt": 86, "dist_km": 268.1, "time_slot": "22:00", "drive_dest": 31, "drive_alt": 420}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGSK", "alt_lat": 39.1775, "alt_lon": 23.5036111111, "n_flights_alt": 1, "dist_km": 143.2, "time_slot": "08:00", "drive_dest": 44, "drive_alt": 222}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGSK", "alt_lat": 39.1775, "alt_lon": 23.5036111111, "n_flights_alt": 1, "dist_km": 143.2, "time_slot": "12:00", "drive_dest": 38, "drive_alt": 229}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGSK", "alt_lat": 39.1775, "alt_lon": 23.5036111111, "n_flights_alt": 1, "dist_km": 143.2, "time_slot": "17:00", "drive_dest": 45, "drive_alt": 218}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGSK", "alt_lat": 39.1775, "alt_lon": 23.5036111111, "n_flights_alt": 1, "dist_km": 143.2, "time_slot": "22:00", "drive_dest": 31, "drive_alt": 214}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGSR", "alt_lat": 36.3991666667, "alt_lon": 25.4791666667, "n_flights_alt": 159, "dist_km": 218.4, "time_slot": "08:00", "drive_dest": 44, "drive_alt": 355}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGSR", "alt_lat": 36.3991666667, "alt_lon": 25.4791666667, "n_flights_alt": 159, "dist_km": 218.4, "time_slot": "12:00", "drive_dest": 38, "drive_alt": 363}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGSR", "alt_lat": 36.3991666667, "alt_lon": 25.4791666667, "n_flights_alt": 159, "dist_km": 218.4, "time_slot": "17:00", "drive_dest": 45, "drive_alt": 347}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGSR", "alt_lat": 36.3991666667, "alt_lon": 25.4791666667, "n_flights_alt": 159, "dist_km": 218.4, "time_slot": "22:00", "drive_dest": 31, "drive_alt": 344}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGSY", "alt_lat": 38.9675, "alt_lon": 24.4875, "n_flights_alt": 1, "dist_km": 124.0, "time_slot": "08:00", "drive_dest": 44, "drive_alt": 247}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGSY", "alt_lat": 38.9675, "alt_lon": 24.4875, "n_flights_alt": 1, "dist_km": 124.0, "time_slot": "12:00", "drive_dest": 38, "drive_alt": 254}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGSY", "alt_lat": 38.9675, "alt_lon": 24.4875, "n_flights_alt": 1, "dist_km": 124.0, "time_slot": "17:00", "drive_dest": 45, "drive_alt": 241}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGSY", "alt_lat": 38.9675, "alt_lon": 24.4875, "n_flights_alt": 1, "dist_km": 124.0, "time_slot": "22:00", "drive_dest": 31, "drive_alt": 235}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGTS", "alt_lat": 40.5197222222, "alt_lon": 22.9708333333, "n_flights_alt": 80, "dist_km": 299.2, "time_slot": "08:00", "drive_dest": 44, "drive_alt": 314}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGTS", "alt_lat": 40.5197222222, "alt_lon": 22.9708333333, "n_flights_alt": 80, "dist_km": 299.2, "time_slot": "12:00", "drive_dest": 38, "drive_alt": 321}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGTS", "alt_lat": 40.5197222222, "alt_lon": 22.9708333333, "n_flights_alt": 80, "dist_km": 299.2, "time_slot": "17:00", "drive_dest": 45, "drive_alt": 304}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LGTS", "alt_lat": 40.5197222222, "alt_lon": 22.9708333333, "n_flights_alt": 80, "dist_km": 299.2, "time_slot": "22:00", "drive_dest": 31, "drive_alt": 294}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LTBJ", "alt_lat": 38.2891666667, "alt_lon": 27.155, "n_flights_alt": 36, "dist_km": 283.6, "time_slot": "08:00", "drive_dest": 44, "drive_alt": 798}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LTBJ", "alt_lat": 38.2891666667, "alt_lon": 27.155, "n_flights_alt": 36, "dist_km": 283.6, "time_slot": "12:00", "drive_dest": 38, "drive_alt": 789}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LTBJ", "alt_lat": 38.2891666667, "alt_lon": 27.155, "n_flights_alt": 36, "dist_km": 283.6, "time_slot": "17:00", "drive_dest": 45, "drive_alt": 791}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LTBJ", "alt_lat": 38.2891666667, "alt_lon": 27.155, "n_flights_alt": 36, "dist_km": 283.6, "time_slot": "22:00", "drive_dest": 31, "drive_alt": 789}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LTFE", "alt_lat": 37.2472222222, "alt_lon": 27.6813888889, "n_flights_alt": 1, "dist_km": 338.0, "time_slot": "08:00", "drive_dest": 44, "drive_alt": 901}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LTFE", "alt_lat": 37.2472222222, "alt_lon": 27.6813888889, "n_flights_alt": 1, "dist_km": 338.0, "time_slot": "12:00", "drive_dest": 38, "drive_alt": 898}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LTFE", "alt_lat": 37.2472222222, "alt_lon": 27.6813888889, "n_flights_alt": 1, "dist_km": 338.0, "time_slot": "17:00", "drive_dest": 45, "drive_alt": 916}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LTFE", "alt_lat": 37.2472222222, "alt_lon": 27.6813888889, "n_flights_alt": 1, "dist_km": 338.0, "time_slot": "22:00", "drive_dest": 31, "drive_alt": 898}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LTFM", "alt_lat": 41.2613, "alt_lon": 28.74195, "n_flights_alt": 1, "dist_km": 552.7, "time_slot": "08:00", "drive_dest": 44, "drive_alt": 617}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LTFM", "alt_lat": 41.2613, "alt_lon": 28.74195, "n_flights_alt": 1, "dist_km": 552.7, "time_slot": "12:00", "drive_dest": 38, "drive_alt": 600}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LTFM", "alt_lat": 41.2613, "alt_lon": 28.74195, "n_flights_alt": 1, "dist_km": 552.7, "time_slot": "17:00", "drive_dest": 45, "drive_alt": 596}, {"dest": "LGAV", "city": "Athens", "city_lat": 37.9838, "city_lon": 23.7275, "alt": "LTFM", "alt_lat": 41.2613, "alt_lon": 28.74195, "n_flights_alt": 1, "dist_km": 552.7, "time_slot": "22:00", "drive_dest": 31, "drive_alt": 610}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "EDDF", "alt_lat": 50.0333333333, "alt_lon": 8.570555555599999, "n_flights_alt": 6, "dist_km": 489.8, "time_slot": "08:00", "drive_dest": 59, "drive_alt": 404}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "EDDF", "alt_lat": 50.0333333333, "alt_lon": 8.570555555599999, "n_flights_alt": 6, "dist_km": 489.8, "time_slot": "12:00", "drive_dest": 48, "drive_alt": 413}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "EDDF", "alt_lat": 50.0333333333, "alt_lon": 8.570555555599999, "n_flights_alt": 6, "dist_km": 489.8, "time_slot": "17:00", "drive_dest": 51, "drive_alt": 388}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "EDDF", "alt_lat": 50.0333333333, "alt_lon": 8.570555555599999, "n_flights_alt": 6, "dist_km": 489.8, "time_slot": "22:00", "drive_dest": 41, "drive_alt": 375}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "EDDK", "alt_lat": 50.8658333333, "alt_lon": 7.1427777778, "n_flights_alt": 4, "dist_km": 593.8, "time_slot": "08:00", "drive_dest": 59, "drive_alt": 488}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "EDDK", "alt_lat": 50.8658333333, "alt_lon": 7.1427777778, "n_flights_alt": 4, "dist_km": 593.8, "time_slot": "12:00", "drive_dest": 48, "drive_alt": 484}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "EDDK", "alt_lat": 50.8658333333, "alt_lon": 7.1427777778, "n_flights_alt": 4, "dist_km": 593.8, "time_slot": "17:00", "drive_dest": 51, "drive_alt": 466}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "EDDK", "alt_lat": 50.8658333333, "alt_lon": 7.1427777778, "n_flights_alt": 4, "dist_km": 593.8, "time_slot": "22:00", "drive_dest": 41, "drive_alt": 458}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "EDDP", "alt_lat": 51.4238888889, "alt_lon": 12.2363888889, "n_flights_alt": 7, "dist_km": 694.1, "time_slot": "08:00", "drive_dest": 59, "drive_alt": 503}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "EDDP", "alt_lat": 51.4238888889, "alt_lon": 12.2363888889, "n_flights_alt": 7, "dist_km": 694.1, "time_slot": "12:00", "drive_dest": 48, "drive_alt": 500}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "EDDP", "alt_lat": 51.4238888889, "alt_lon": 12.2363888889, "n_flights_alt": 7, "dist_km": 694.1, "time_slot": "17:00", "drive_dest": 51, "drive_alt": 482}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "EDDP", "alt_lat": 51.4238888889, "alt_lon": 12.2363888889, "n_flights_alt": 7, "dist_km": 694.1, "time_slot": "22:00", "drive_dest": 41, "drive_alt": 486}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LFMN", "alt_lat": 43.6652777778, "alt_lon": 7.215, "n_flights_alt": 1, "dist_km": 248.9, "time_slot": "08:00", "drive_dest": 59, "drive_alt": 208}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LFMN", "alt_lat": 43.6652777778, "alt_lon": 7.215, "n_flights_alt": 1, "dist_km": 248.9, "time_slot": "12:00", "drive_dest": 48, "drive_alt": 208}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LFMN", "alt_lat": 43.6652777778, "alt_lon": 7.215, "n_flights_alt": 1, "dist_km": 248.9, "time_slot": "17:00", "drive_dest": 51, "drive_alt": 210}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LFMN", "alt_lat": 43.6652777778, "alt_lon": 7.215, "n_flights_alt": 1, "dist_km": 248.9, "time_slot": "22:00", "drive_dest": 41, "drive_alt": 196}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIME", "alt_lat": 45.66888888890001, "alt_lon": 9.7002777778, "n_flights_alt": 128, "dist_km": 76.1, "time_slot": "08:00", "drive_dest": 59, "drive_alt": 79}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIME", "alt_lat": 45.66888888890001, "alt_lon": 9.7002777778, "n_flights_alt": 128, "dist_km": 76.1, "time_slot": "12:00", "drive_dest": 48, "drive_alt": 61}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIME", "alt_lat": 45.66888888890001, "alt_lon": 9.7002777778, "n_flights_alt": 128, "dist_km": 76.1, "time_slot": "17:00", "drive_dest": 51, "drive_alt": 67}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIME", "alt_lat": 45.66888888890001, "alt_lon": 9.7002777778, "n_flights_alt": 128, "dist_km": 76.1, "time_slot": "22:00", "drive_dest": 41, "drive_alt": 54}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIMF", "alt_lat": 45.2025, "alt_lon": 7.6494444444, "n_flights_alt": 138, "dist_km": 96.3, "time_slot": "08:00", "drive_dest": 59, "drive_alt": 100}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIMF", "alt_lat": 45.2025, "alt_lon": 7.6494444444, "n_flights_alt": 138, "dist_km": 96.3, "time_slot": "12:00", "drive_dest": 48, "drive_alt": 94}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIMF", "alt_lat": 45.2025, "alt_lon": 7.6494444444, "n_flights_alt": 138, "dist_km": 96.3, "time_slot": "17:00", "drive_dest": 51, "drive_alt": 97}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIMF", "alt_lat": 45.2025, "alt_lon": 7.6494444444, "n_flights_alt": 138, "dist_km": 96.3, "time_slot": "22:00", "drive_dest": 41, "drive_alt": 89}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIMJ", "alt_lat": 44.4133333333, "alt_lon": 8.8375, "n_flights_alt": 63, "dist_km": 135.6, "time_slot": "08:00", "drive_dest": 59, "drive_alt": 106}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIMJ", "alt_lat": 44.4133333333, "alt_lon": 8.8375, "n_flights_alt": 63, "dist_km": 135.6, "time_slot": "12:00", "drive_dest": 48, "drive_alt": 102}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIMJ", "alt_lat": 44.4133333333, "alt_lon": 8.8375, "n_flights_alt": 63, "dist_km": 135.6, "time_slot": "17:00", "drive_dest": 51, "drive_alt": 105}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIMJ", "alt_lat": 44.4133333333, "alt_lon": 8.8375, "n_flights_alt": 63, "dist_km": 135.6, "time_slot": "22:00", "drive_dest": 41, "drive_alt": 95}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIML", "alt_lat": 45.4494444444, "alt_lon": 9.2783333333, "n_flights_alt": 84, "dist_km": 47.7, "time_slot": "08:00", "drive_dest": 59, "drive_alt": 43}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIML", "alt_lat": 45.4494444444, "alt_lon": 9.2783333333, "n_flights_alt": 84, "dist_km": 47.7, "time_slot": "12:00", "drive_dest": 48, "drive_alt": 38}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIML", "alt_lat": 45.4494444444, "alt_lon": 9.2783333333, "n_flights_alt": 84, "dist_km": 47.7, "time_slot": "17:00", "drive_dest": 51, "drive_alt": 39}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIML", "alt_lat": 45.4494444444, "alt_lon": 9.2783333333, "n_flights_alt": 84, "dist_km": 47.7, "time_slot": "22:00", "drive_dest": 41, "drive_alt": 31}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIPE", "alt_lat": 44.5308333333, "alt_lon": 11.2969444444, "n_flights_alt": 10, "dist_km": 236.2, "time_slot": "08:00", "drive_dest": 59, "drive_alt": 137}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIPE", "alt_lat": 44.5308333333, "alt_lon": 11.2969444444, "n_flights_alt": 10, "dist_km": 236.2, "time_slot": "12:00", "drive_dest": 48, "drive_alt": 134}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIPE", "alt_lat": 44.5308333333, "alt_lon": 11.2969444444, "n_flights_alt": 10, "dist_km": 236.2, "time_slot": "17:00", "drive_dest": 51, "drive_alt": 138}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIPE", "alt_lat": 44.5308333333, "alt_lon": 11.2969444444, "n_flights_alt": 10, "dist_km": 236.2, "time_slot": "22:00", "drive_dest": 41, "drive_alt": 126}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIPO", "alt_lat": 45.428888888900005, "alt_lon": 10.3305555556, "n_flights_alt": 10, "dist_km": 127.2, "time_slot": "08:00", "drive_dest": 59, "drive_alt": 92}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIPO", "alt_lat": 45.428888888900005, "alt_lon": 10.3305555556, "n_flights_alt": 10, "dist_km": 127.2, "time_slot": "12:00", "drive_dest": 48, "drive_alt": 85}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIPO", "alt_lat": 45.428888888900005, "alt_lon": 10.3305555556, "n_flights_alt": 10, "dist_km": 127.2, "time_slot": "17:00", "drive_dest": 51, "drive_alt": 88}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIPO", "alt_lat": 45.428888888900005, "alt_lon": 10.3305555556, "n_flights_alt": 10, "dist_km": 127.2, "time_slot": "22:00", "drive_dest": 41, "drive_alt": 78}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIPX", "alt_lat": 45.396388888900006, "alt_lon": 10.8877777778, "n_flights_alt": 5, "dist_km": 170.7, "time_slot": "08:00", "drive_dest": 59, "drive_alt": 119}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIPX", "alt_lat": 45.396388888900006, "alt_lon": 10.8877777778, "n_flights_alt": 5, "dist_km": 170.7, "time_slot": "12:00", "drive_dest": 48, "drive_alt": 114}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIPX", "alt_lat": 45.396388888900006, "alt_lon": 10.8877777778, "n_flights_alt": 5, "dist_km": 170.7, "time_slot": "17:00", "drive_dest": 51, "drive_alt": 117}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIPX", "alt_lat": 45.396388888900006, "alt_lon": 10.8877777778, "n_flights_alt": 5, "dist_km": 170.7, "time_slot": "22:00", "drive_dest": 41, "drive_alt": 105}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIPZ", "alt_lat": 45.5052777778, "alt_lon": 12.3519444444, "n_flights_alt": 15, "dist_km": 282.8, "time_slot": "08:00", "drive_dest": 59, "drive_alt": 176}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIPZ", "alt_lat": 45.5052777778, "alt_lon": 12.3519444444, "n_flights_alt": 15, "dist_km": 282.8, "time_slot": "12:00", "drive_dest": 48, "drive_alt": 168}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIPZ", "alt_lat": 45.5052777778, "alt_lon": 12.3519444444, "n_flights_alt": 15, "dist_km": 282.8, "time_slot": "17:00", "drive_dest": 51, "drive_alt": 169}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIPZ", "alt_lat": 45.5052777778, "alt_lon": 12.3519444444, "n_flights_alt": 15, "dist_km": 282.8, "time_slot": "22:00", "drive_dest": 41, "drive_alt": 157}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIRF", "alt_lat": 41.800277777800005, "alt_lon": 12.238888888900002, "n_flights_alt": 18, "dist_km": 510.9, "time_slot": "08:00", "drive_dest": 59, "drive_alt": 369}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIRF", "alt_lat": 41.800277777800005, "alt_lon": 12.238888888900002, "n_flights_alt": 18, "dist_km": 510.9, "time_slot": "12:00", "drive_dest": 48, "drive_alt": 373}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIRF", "alt_lat": 41.800277777800005, "alt_lon": 12.238888888900002, "n_flights_alt": 18, "dist_km": 510.9, "time_slot": "17:00", "drive_dest": 51, "drive_alt": 362}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIRF", "alt_lat": 41.800277777800005, "alt_lon": 12.238888888900002, "n_flights_alt": 18, "dist_km": 510.9, "time_slot": "22:00", "drive_dest": 41, "drive_alt": 351}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIRP", "alt_lat": 43.6827777778, "alt_lon": 10.3955555556, "n_flights_alt": 3, "dist_km": 253.7, "time_slot": "08:00", "drive_dest": 59, "drive_alt": 199}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIRP", "alt_lat": 43.6827777778, "alt_lon": 10.3955555556, "n_flights_alt": 3, "dist_km": 253.7, "time_slot": "12:00", "drive_dest": 48, "drive_alt": 198}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIRP", "alt_lat": 43.6827777778, "alt_lon": 10.3955555556, "n_flights_alt": 3, "dist_km": 253.7, "time_slot": "17:00", "drive_dest": 51, "drive_alt": 196}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LIRP", "alt_lat": 43.6827777778, "alt_lon": 10.3955555556, "n_flights_alt": 3, "dist_km": 253.7, "time_slot": "22:00", "drive_dest": 41, "drive_alt": 188}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LOWW", "alt_lat": 48.1102777778, "alt_lon": 16.5697222222, "n_flights_alt": 2, "dist_km": 656.8, "time_slot": "08:00", "drive_dest": 59, "drive_alt": 500}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LOWW", "alt_lat": 48.1102777778, "alt_lon": 16.5697222222, "n_flights_alt": 2, "dist_km": 656.8, "time_slot": "12:00", "drive_dest": 48, "drive_alt": 496}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LOWW", "alt_lat": 48.1102777778, "alt_lon": 16.5697222222, "n_flights_alt": 2, "dist_km": 656.8, "time_slot": "17:00", "drive_dest": 51, "drive_alt": 483}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LOWW", "alt_lat": 48.1102777778, "alt_lon": 16.5697222222, "n_flights_alt": 2, "dist_km": 656.8, "time_slot": "22:00", "drive_dest": 41, "drive_alt": 478}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LSGG", "alt_lat": 46.2383333333, "alt_lon": 6.1094444444, "n_flights_alt": 6, "dist_km": 213.1, "time_slot": "08:00", "drive_dest": 59, "drive_alt": 216}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LSGG", "alt_lat": 46.2383333333, "alt_lon": 6.1094444444, "n_flights_alt": 6, "dist_km": 213.1, "time_slot": "12:00", "drive_dest": 48, "drive_alt": 215}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LSGG", "alt_lat": 46.2383333333, "alt_lon": 6.1094444444, "n_flights_alt": 6, "dist_km": 213.1, "time_slot": "17:00", "drive_dest": 51, "drive_alt": 228}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LSGG", "alt_lat": 46.2383333333, "alt_lon": 6.1094444444, "n_flights_alt": 6, "dist_km": 213.1, "time_slot": "22:00", "drive_dest": 41, "drive_alt": 204}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LSZH", "alt_lat": 47.458055555600005, "alt_lon": 8.5480555556, "n_flights_alt": 9, "dist_km": 203.7, "time_slot": "08:00", "drive_dest": 59, "drive_alt": 212}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LSZH", "alt_lat": 47.458055555600005, "alt_lon": 8.5480555556, "n_flights_alt": 9, "dist_km": 203.7, "time_slot": "12:00", "drive_dest": 48, "drive_alt": 211}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LSZH", "alt_lat": 47.458055555600005, "alt_lon": 8.5480555556, "n_flights_alt": 9, "dist_km": 203.7, "time_slot": "17:00", "drive_dest": 51, "drive_alt": 208}, {"dest": "LIMC", "city": "Milan", "city_lat": 45.4654, "city_lon": 9.1859, "alt": "LSZH", "alt_lat": 47.458055555600005, "alt_lon": 8.5480555556, "n_flights_alt": 9, "dist_km": 203.7, "time_slot": "22:00", "drive_dest": 41, "drive_alt": 197}];
+const TOMTOM_KEY  = '5h5VNTeESb9hHq8iRJL0TKPgIUnxK5Oj';
+const CITY_CENTRES = {
+  LFPG: { name:'Paris',     lat:48.8566, lng:2.3522  },
+  ESSA: { name:'Stockholm', lat:59.3293, lng:18.0686 },
+  LGAV: { name:'Athens',    lat:37.9838, lng:23.7275 },
+  LIMC: { name:'Milan',     lat:45.4654, lng:9.1859  },
+};
+const AP_COLOURS = {
+  LFPG:'#9C27B0', ESSA:'#2196F3', LGAV:'#4CAF50', LIMC:'#FF5722'
+};
+const AP_NAMES = {
+  LFPG:'Paris CDG', ESSA:'Stockholm ARN', LGAV:'Athens ATH', LIMC:'Milan MXP'
+};
+
+let map, directionsService;
+let mapLoaded    = false;
+let currentMode  = 'fixed';
+let visibleApts  = new Set(['LFPG','ESSA','LGAV','LIMC']);
+let fixedLayers  = [];
+let customLayers = [];
+let altMarkers   = {};
+
+function loadMap() {
+  const key = document.getElementById('apiKey').value.trim();
+  if (!key) { alert('Please enter your Google Maps API key.'); return; }
+  if (mapLoaded) return;
+  document.getElementById('map-placeholder').style.display = 'none';
+  document.getElementById('map').style.display = 'block';
+  const script = document.createElement('script');
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&callback=initMap`;
+  script.async = true; script.defer = true;
+  document.head.appendChild(script);
+  mapLoaded = true;
+}
+
+function initMap() {
+  map = new google.maps.Map(document.getElementById('map'), {
+    center: {lat:48.0, lng:10.0}, zoom:5, mapTypeId:'roadmap',
+    styles:[
+      {elementType:'geometry',stylers:[{color:'#1a1a2e'}]},
+      {elementType:'labels.text.fill',stylers:[{color:'#94a3b8'}]},
+      {elementType:'labels.text.stroke',stylers:[{color:'#1a1a2e'}]},
+      {featureType:'road',elementType:'geometry',stylers:[{color:'#2d3748'}]},
+      {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#2d4a7a'}]},
+      {featureType:'water',elementType:'geometry',stylers:[{color:'#0d1525'}]},
+      {featureType:'poi',stylers:[{visibility:'off'}]},
+    ]
+  });
+  directionsService = new google.maps.DirectionsService();
+
+  // Draw city centre markers
+  Object.entries(CITY_CENTRES).forEach(([code, city]) => {
+    new google.maps.Marker({
+      position: {lat:city.lat, lng:city.lng},
+      map, title: city.name,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE, scale:14,
+        fillColor: AP_COLOURS[code], fillOpacity:1,
+        strokeColor:'white', strokeWeight:2
+      },
+      label: {text:city.name.split(' ')[0], color:'white', fontSize:'9px', fontWeight:'bold'},
+      zIndex: 999
+    });
+  });
+
+  // Draw destination airport markers
+  const destSeen = new Set();
+  MAP_DATA.forEach(d => {
+    if (destSeen.has(d.dest)) return;
+    destSeen.add(d.dest);
+    new google.maps.Marker({
+      position: {lat:d.city_lat + 0.3, lng:d.city_lon},
+      map, title: AP_NAMES[d.dest],
+      icon: {
+        path: 'M 0,-2 L 0.8,0.8 L 0,0.4 L -0.8,0.8 Z',
+        scale:8, fillColor:AP_COLOURS[d.dest], fillOpacity:1,
+        strokeColor:'white', strokeWeight:1
+      },
+      zIndex:998
+    });
+  });
+
+  drawFixedRoutes();
+
+  map.addListener('click', e => {
+    if (currentMode === 'custom') {
+      handleCustomClick(e.latLng.lat(), e.latLng.lng());
+    }
+  });
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('btn-fixed').className  = 'mode-btn'+(mode==='fixed'?' active':'');
+  document.getElementById('btn-custom').className = 'mode-btn'+(mode==='custom'?' active':'');
+  if (mode === 'fixed') {
+    customLayers.forEach(l=>l.setMap(null)); customLayers=[];
+    document.getElementById('results').innerHTML =
+      '<div style="padding:16px;font-size:11px;color:#64748b;">Click an alternate airport marker to see surface mobility details.</div>';
+  } else {
+    document.getElementById('results').innerHTML =
+      '<div style="padding:16px;font-size:11px;color:#64748b;">Click anywhere on the map to calculate routes to all 4 city centres.</div>';
+  }
+}
+
+function toggleAirport(code) {
+  const btn = document.getElementById(`btn-${code}`);
+  if (visibleApts.has(code)) {
+    visibleApts.delete(code);
+    btn.classList.remove('on');
+    btn.style.opacity = '0.4';
+  } else {
+    visibleApts.add(code);
+    btn.classList.add('on');
+    btn.style.opacity = '1';
+  }
+  redrawFixed();
+}
+
+function redrawFixed() {
+  fixedLayers.forEach(l=>l.setMap(null)); fixedLayers=[];
+  Object.values(altMarkers).forEach(m=>m.setMap(null)); altMarkers={};
+  drawFixedRoutes();
+}
+
+function drawFixedRoutes() {
+  const timeSlot = document.getElementById('time-slot').value;
+  const seen     = {};
+
+  MAP_DATA.filter(d => visibleApts.has(d.dest) && d.time_slot === timeSlot).forEach(d => {
+    const markerKey = d.alt;
+    if (!seen[markerKey]) {
+      seen[markerKey] = true;
+
+      // Line from alternate to city centre
+      const line = new google.maps.Polyline({
+        path: [{lat:d.alt_lat, lng:d.alt_lon}, {lat:d.city_lat, lng:d.city_lon}],
+        strokeColor:   AP_COLOURS[d.dest],
+        strokeWeight:  1.5,
+        strokeOpacity: 0.5,
+        geodesic:      true,
+        map
+      });
+      fixedLayers.push(line);
+
+      // Alternate airport marker
+      const marker = new google.maps.Marker({
+        position: {lat:d.alt_lat, lng:d.alt_lon},
+        map,
+        title: d.alt,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE, scale:6,
+          fillColor:   AP_COLOURS[d.dest],
+          fillOpacity: 0.9,
+          strokeColor: 'white',
+          strokeWeight: 1
+        },
+        zIndex: 100
+      });
+
+      const iw = new google.maps.InfoWindow({
+        content: `<div style="font-size:11px;color:#000">
+          <b>${d.alt}</b> → ${d.city} (${d.dest})<br>
+          🚗 Alt → City: <b>${d.drive_alt || '—'} min</b><br>
+          🚗 Airport → City: <b>${d.drive_dest || '—'} min</b><br>
+          ✈ Dist between airports: ${d.dist_km} km<br>
+          📊 Flights as alternate: ${d.n_flights_alt}
+        </div>`
+      });
+
+      marker.addListener('click', () => {
+        iw.open(map, marker);
+        showFixedDetails(d);
+        // Draw driving route
+        drawDriveRoute(d.alt_lat, d.alt_lon, d.city_lat, d.city_lon,
+                       AP_COLOURS[d.dest], d.alt, d.city, d.drive_alt);
+      });
+
+      altMarkers[markerKey] = marker;
+      fixedLayers.push(marker);
+    }
+  });
+}
+
+function showFixedDetails(d) {
+  document.getElementById('results').innerHTML = `
+    <div class="result-block">
+      <div class="result-header">
+        <div class="dot" style="background:${AP_COLOURS[d.dest]}"></div>
+        ${d.alt} → ${d.city} (${d.dest})
+      </div>
+      <div class="result-row"><span class="result-label">Time slot</span><span class="result-val">${d.time_slot}</span></div>
+      <div class="result-row"><span class="result-label">Flights using this alternate</span><span class="result-val">${d.n_flights_alt}</span></div>
+      <div class="result-row"><span class="result-label">Distance between airports</span><span class="result-val">${d.dist_km} km</span></div>
+      <div class="result-row"><span class="result-label">🚗 Airport → city centre</span><span class="result-val">${d.drive_dest || '—'} min</span></div>
+      <div class="result-row"><span class="result-label">🚗 Alternate → city centre</span><span class="result-val">${d.drive_alt || '—'} min</span></div>
+      <div class="result-row"><span class="result-label"> Extra travel time</span><span class="result-val" style="color:#ef4444">
+        ${d.drive_alt && d.drive_dest ? '+' + (d.drive_alt - d.drive_dest) + ' min' : '—'}
+      </span></div>
+    </div>
+    <div style="padding:8px 12px;font-size:10px;color:#64748b;">
+      Click the marker on the map to draw the driving route.
+      Transit times calculated live below.
+    </div>
+    <div class="result-block" id="transit-block">
+      <div class="result-header">🚆 Live Transit Times</div>
+      <div class="result-row" id="transit-result">
+        <span class="result-label">Calculating...</span>
+        <div class="spinner"></div>
+      </div>
+    </div>`;
+
+  // Calculate live transit
+  calcTransit(d.alt_lat, d.alt_lon, d.city_lat, d.city_lon, d.drive_dest);
+}
+
+let driveRenderers = [];
+function drawDriveRoute(fromLat, fromLon, toLat, toLon, colour, fromName, toName, knownTime) {
+  driveRenderers.forEach(r=>r.setMap(null)); driveRenderers=[];
+  const renderer = new google.maps.DirectionsRenderer({
+    suppressMarkers:true,
+    polylineOptions:{strokeColor:colour, strokeWeight:4, strokeOpacity:0.85}
+  });
+  driveRenderers.push(renderer);
+  directionsService.route({
+    origin:      {lat:fromLat, lng:fromLon},
+    destination: {lat:toLat,   lng:toLon},
+    travelMode:  google.maps.TravelMode.DRIVING,
+    drivingOptions:{departureTime:new Date(), trafficModel:google.maps.TrafficModel.BEST_GUESS}
+  }, (result, status) => {
+    if (status==='OK') { renderer.setMap(map); renderer.setDirections(result); }
+  });
+}
+
+function calcTransit(fromLat, fromLon, toLat, toLon, destTime) {
+  directionsService.route({
+    origin:      {lat:fromLat, lng:fromLon},
+    destination: {lat:toLat,   lng:toLon},
+    travelMode:  google.maps.TravelMode.TRANSIT,
+    transitOptions:{
+      departureTime: new Date(),
+      modes:[google.maps.TransitMode.RAIL, google.maps.TransitMode.BUS],
+      routingPreference: google.maps.TransitRoutePreference.FEWER_TRANSFERS
+    }
+  }, (result, status) => {
+    const el = document.getElementById('transit-result');
+    if (!el) return;
+    if (status==='OK') {
+      const mins  = Math.round(result.routes[0].legs[0].duration.value/60);
+      const steps = result.routes[0].legs[0].steps
+        .filter(s=>s.travel_mode==='TRANSIT')
+        .map(s=>s.transit?.line?.short_name||s.transit?.line?.name||'')
+        .filter(Boolean).join(' → ');
+      el.innerHTML = `
+        <span class="result-label">🚆 Alternate → city</span>
+        <span class="result-val" style="color:#00ccff">${mins} min</span>`;
+      if (steps) {
+        document.getElementById('transit-block').innerHTML +=
+          `<div class="result-row"><span class="result-label">Lines</span><span class="result-val" style="font-size:10px">${steps}</span></div>`;
+      }
+      if (destTime) {
+        document.getElementById('transit-block').innerHTML +=
+          `<div class="result-row"><span class="result-label">⏱ Extra vs direct</span>
+           <span class="result-val" style="color:#ef4444">+${mins - destTime} min</span></div>`;
+      }
+    } else {
+      el.innerHTML = `<span class="result-label">Transit</span><span class="result-val" style="color:#64748b">not available</span>`;
+    }
+  });
+}
+
+// Custom click mode
+let customMarker = null;
+function handleCustomClick(lat, lng) {
+  customLayers.forEach(l=>l.setMap(null)); customLayers=[];
+  if (customMarker) customMarker.setMap(null);
+
+  customMarker = new google.maps.Marker({
+    position:{lat,lng}, map,
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:9,
+      fillColor:'#ff8800',fillOpacity:1,strokeColor:'white',strokeWeight:2}
+  });
+  customLayers.push(customMarker);
+
+  document.getElementById('coords').textContent = `Clicked: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+
+  const lb = document.getElementById('loading-bar');
+  lb.style.display='block'; lb.style.color='#f59e0b';
+  lb.textContent=' Calculating routes to all city centres...';
+
+  let html = '';
+  let done = 0;
+  const total = Object.keys(CITY_CENTRES).length;
+
+  Object.entries(CITY_CENTRES).forEach(([code, city]) => {
+    html += `<div class="result-block">
+      <div class="result-header">
+        <div class="dot" style="background:${AP_COLOURS[code]}"></div>
+        → ${city.name}
+      </div>
+      <div class="result-row" id="custom-drive-${code}">
+        <span class="result-label">🚗 Drive</span><div class="spinner"></div>
+      </div>
+      <div class="result-row" id="custom-transit-${code}">
+        <span class="result-label">🚆 Transit</span><div class="spinner"></div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('results').innerHTML = html;
+
+  Object.entries(CITY_CENTRES).forEach(([code, city]) => {
+    // Drive
+    directionsService.route({
+      origin:{lat,lng}, destination:{lat:city.lat,lng:city.lng},
+      travelMode: google.maps.TravelMode.DRIVING,
+      drivingOptions:{departureTime:new Date(),trafficModel:google.maps.TrafficModel.BEST_GUESS}
+    }, (result, status) => {
+      const el = document.getElementById(`custom-drive-${code}`);
+      if (status==='OK') {
+        const mins = Math.round(result.routes[0].legs[0].duration_in_traffic?.value/60 ||
+                                result.routes[0].legs[0].duration.value/60);
+        const km   = (result.routes[0].legs[0].distance.value/1000).toFixed(1);
+        if (el) el.innerHTML = `<span class="result-label">🚗 Drive</span><span class="result-val">${mins} min · ${km} km</span>`;
+        const renderer = new google.maps.DirectionsRenderer({
+          suppressMarkers:true,
+          polylineOptions:{strokeColor:AP_COLOURS[code],strokeWeight:3,strokeOpacity:0.8}
+        });
+        renderer.setMap(map); renderer.setDirections(result);
+        customLayers.push(renderer);
+      } else {
+        if (el) el.innerHTML = `<span class="result-label">🚗 Drive</span><span class="result-val" style="color:#64748b">—</span>`;
+      }
+      done++;
+      if (done === total*2) {
+        lb.textContent=' Routes calculated'; lb.style.color='#22c55e';
+      }
+    });
+
+    // Transit
+    directionsService.route({
+      origin:{lat,lng}, destination:{lat:city.lat,lng:city.lng},
+      travelMode: google.maps.TravelMode.TRANSIT,
+      transitOptions:{departureTime:new Date(),
+        modes:[google.maps.TransitMode.RAIL,google.maps.TransitMode.BUS],
+        routingPreference:google.maps.TransitRoutePreference.FEWER_TRANSFERS}
+    }, (result, status) => {
+      const el = document.getElementById(`custom-transit-${code}`);
+      if (status==='OK') {
+        const mins = Math.round(result.routes[0].legs[0].duration.value/60);
+        if (el) el.innerHTML = `<span class="result-label">🚆 Transit</span><span class="result-val" style="color:#00ccff">${mins} min</span>`;
+      } else {
+        if (el) el.innerHTML = `<span class="result-label">🚆 Transit</span><span class="result-val" style="color:#64748b">not available</span>`;
+      }
+      done++;
+      if (done === total*2) {
+        lb.textContent=' Routes calculated'; lb.style.color='#22c55e';
+      }
+    });
+  });
+}
+</script>
+</body>
+</html>
